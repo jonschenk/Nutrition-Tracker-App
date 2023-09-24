@@ -46,6 +46,7 @@
 		B842FA3C2ABFA8C7000CB8BE /* mcroUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mcroUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B842FA402ABFA8C7000CB8BE /* mcroUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mcroUITests.swift; sourceTree = "<group>"; };
 		B842FA422ABFA8C7000CB8BE /* mcroUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mcroUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		B842FA4F2AC018D5000CB8BE /* TODO.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TODO.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +102,7 @@
 				B842FA272ABFA8C4000CB8BE /* Item.swift */,
 				B842FA292ABFA8C7000CB8BE /* Assets.xcassets */,
 				B842FA2B2ABFA8C7000CB8BE /* Preview Content */,
+				B842FA4F2AC018D5000CB8BE /* TODO.md */,
 			);
 			path = mcro;
 			sourceTree = "<group>";
@@ -429,6 +431,7 @@
 				DEVELOPMENT_TEAM = KNN9866K9H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Protein Tracker";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -459,6 +462,7 @@
 				DEVELOPMENT_TEAM = KNN9866K9H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Protein Tracker";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

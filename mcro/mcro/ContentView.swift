@@ -21,6 +21,35 @@ struct DailyLog: Codable {
     }
 }
 
+func saveDailyLogs(_ dailyLogs: [DailyLog]) {
+    let encoder = JSONEncoder()
+    if let encodedData = try? encoder.encode(dailyLogs) {
+        UserDefaults.standard.set(encodedData, forKey: "dailyLogs")
+    }
+}
+
+func loadDailyLogs() -> [DailyLog] {
+    if let data = UserDefaults.standard.data(forKey: "dailyLogs"),
+       let logs = try? JSONDecoder().decode([DailyLog].self, from: data) {
+        return logs
+    } else {
+        return []
+    }
+}
+
+// Save goals to UserDefaults
+func saveGoals(proteinGoal: Double, calorieGoal: Double) {
+    UserDefaults.standard.set(proteinGoal, forKey: "proteinGoal")
+    UserDefaults.standard.set(calorieGoal, forKey: "calorieGoal")
+}
+
+// Load goals from UserDefaults
+func loadGoals() -> (proteinGoal: Double, calorieGoal: Double) {
+    let proteinGoal = UserDefaults.standard.double(forKey: "proteinGoal")
+    let calorieGoal = UserDefaults.standard.double(forKey: "calorieGoal")
+    return (proteinGoal, calorieGoal)
+}
+
 extension View {
     func customFont() -> some View {
         self.modifier(CustomFont())
@@ -45,60 +74,65 @@ struct BlackButtonStyle: ButtonStyle {
 }
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-    
     @State private var proteinIntake: Double = 0
     @State private var calorieIntake: Double = 0
-    @State private var proteinGoal: Double = 0
-    @State private var calorieGoal: Double = 0
-    
-    @State private var isStartPageActive = true // Initially show the Start Page
-    @State private var isEditGoalsActive = false // Track the state of the Edit Goals sheet
-    
-    @State private var dailyLogs: [DailyLog] = [] // Track daily logs
-    
-    init() {
-        // Load daily logs from storage (you can use CoreData or another storage mechanism)
-        // You need to implement the storage mechanism to load and save daily logs.
-        // Here, we assume DailyLog is Codable and can be stored in UserDefaults.
-        if let data = UserDefaults.standard.data(forKey: "dailyLogs"),
-           let decodedLogs = try? JSONDecoder().decode([DailyLog].self, from: data) {
-            dailyLogs = decodedLogs
-        }
-    }
-    
+    @State private var isEditGoalsActive = false
+    @State private var dailyLogs: [DailyLog] = loadDailyLogs()
+    @State private var isStartPageActive = loadDailyLogs().isEmpty // Initialize based on logs
+
+    // Load goals globally
+    @AppStorage("proteinGoal") var proteinGoal: Double = 0 // Load the protein goal
+    @AppStorage("calorieGoal") var calorieGoal: Double = 0 // Load the calorie goal
+
+
     var body: some View {
-            NavigationView {
-                Group {
-                    if isStartPageActive {
-                        StartPage(proteinGoal: $proteinGoal, calorieGoal: $calorieGoal, proteinIntake: $proteinIntake, calorieIntake: $calorieIntake, isStartPageActive: $isStartPageActive)
-                            .transition(.move(edge: .bottom))
-                    } else {
-                        TabView {
-                            HomeView(proteinIntake: $proteinIntake, calorieIntake: $calorieIntake, proteinGoal: $proteinGoal, calorieGoal: $calorieGoal, isEditGoalsActive: $isEditGoalsActive, dailyLogs: $dailyLogs)
-                                .tabItem {
-                                    Image(systemName: "house")
-                                    Text("Home")
-                                }
-                            
-                            DailyLogListView(dailyLogs: $dailyLogs)
-                                .tabItem {
-                                    Image(systemName: "book")
-                                    Text("Log")
-                                }
+        NavigationView {
+            Group {
+                if isStartPageActive { // Show StartPage initially
+                    StartPage(
+                        proteinGoal: $proteinGoal,
+                        calorieGoal: $calorieGoal,
+                        proteinIntake: $proteinIntake,
+                        calorieIntake: $calorieIntake,
+                        isStartPageActive: $isStartPageActive
+                    )
+                    .transition(.move(edge: .bottom))
+                } else {
+                    TabView {
+                        HomeView(
+                            proteinIntake: $proteinIntake,
+                            calorieIntake: $calorieIntake,
+                            proteinGoal: $proteinGoal, // Pass protein goal
+                            calorieGoal: $calorieGoal, // Pass calorie goal
+                            isEditGoalsActive: $isEditGoalsActive,
+                            dailyLogs: $dailyLogs
+                        )
+                        .tabItem {
+                            Image(systemName: "house")
+                            Text("Home")
                         }
-                        .transition(.move(edge: .bottom))
-                        .sheet(isPresented: $isEditGoalsActive) {
-                            EditGoalsView(proteinGoal: $proteinGoal, calorieGoal: $calorieGoal, isEditGoalsActive: $isEditGoalsActive)
+
+                        DailyLogListView(dailyLogs: $dailyLogs)
+                        .tabItem {
+                            Image(systemName: "book")
+                            Text("Log")
                         }
                     }
+                    .transition(.move(edge: .bottom))
+                    .sheet(isPresented: $isEditGoalsActive) {
+                        EditGoalsView(
+                            proteinGoal: $proteinGoal, // Pass protein goal
+                            calorieGoal: $calorieGoal, // Pass calorie goal
+                            isEditGoalsActive: $isEditGoalsActive
+                        )
+                    }
                 }
-                .customFont()
             }
             .customFont()
         }
+        .customFont()
     }
+}
 
 struct HomeView: View {
     @Binding var proteinIntake: Double
@@ -107,28 +141,37 @@ struct HomeView: View {
     @Binding var calorieGoal: Double
     @Binding var isEditGoalsActive: Bool
     @Binding var dailyLogs: [DailyLog]
-    
+
     private var currentDate: String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "EEEE, MMM dd, yyyy"
         return dateFormatter.string(from: Date())
     }
-    
+
     var body: some View {
+        let todayLog = dailyLogs.first(where: { Calendar.current.isDate($0.date, inSameDayAs: Date()) })
+
         VStack(spacing: 20) {
             Text("Progress")
                 .font(.custom("Courier New", size: 30).bold())
-            
+
             Text(currentDate) // Display the current day here
                 .font(.custom("Courier New", size: 16))
                 .foregroundColor(.gray)
-            
-            CircularProgressBar(value: proteinIntake, goal: proteinGoal, label: "grams", color: Color(red: 122/255, green: 255/255, blue: 209/255))
-                .frame(width: 150, height: 150) // Adjust the size of the circular progress bar
-            
-            CircularProgressBar(value: calorieIntake, goal: calorieGoal, label: "kcal", color: Color(red: 171/255, green: 122/255, blue: 255/255))
-                .frame(width: 150, height: 150) // Adjust the size of the circular progress bar
-            
+
+            if let todayLog = todayLog {
+                CircularProgressBar(value: todayLog.proteinIntake, goal: proteinGoal, label: "grams", color: Color(red: 122/255, green: 255/255, blue: 209/255))
+                    .frame(width: 150, height: 150) // Adjust the size of the circular progress bar
+
+                CircularProgressBar(value: todayLog.calorieIntake, goal: calorieGoal, label: "kcal", color: Color(red: 171/255, green: 122/255, blue: 255/255))
+                    .frame(width: 150, height: 150) // Adjust the size of the circular progress bar
+            } else {
+                // Display a message when there's no log entry for the current day
+                Text("No data available for today.")
+                    .foregroundColor(.gray)
+                    .italic()
+            }
+
             Button(action: {
                 isEditGoalsActive = true // Show the Edit Goals sheet
             }) {
@@ -141,7 +184,7 @@ struct HomeView: View {
             }
             .buttonStyle(BlackButtonStyle())
             .padding(.horizontal)
-            
+
             NavigationLink(destination: AddPage(proteinIntake: $proteinIntake, calorieIntake: $calorieIntake, dailyLogs: $dailyLogs)) {
                 Text("Add")
                     .frame(maxWidth: .infinity)
@@ -152,7 +195,7 @@ struct HomeView: View {
             }
             .buttonStyle(BlackButtonStyle())
             .padding(.horizontal)
-            
+
             Spacer()
         }
         .padding()
@@ -164,10 +207,10 @@ struct EditGoalsView: View {
     @Binding var proteinGoal: Double
     @Binding var calorieGoal: Double
     @Binding var isEditGoalsActive: Bool
-    
+
     @State private var proteinInput: String = ""
     @State private var calorieInput: String = ""
-    
+
     var body: some View {
         NavigationView {
             VStack {
@@ -178,18 +221,20 @@ struct EditGoalsView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .padding()
-                
+
                 TextField("Enter Desired Calorie Goal", text: $calorieInput)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .padding()
-                
+
                 Button(action: {
                     if let proteinValue = Double(proteinInput), proteinValue >= 0 {
                         proteinGoal = proteinValue
+                        saveGoals(proteinGoal: proteinValue, calorieGoal: calorieGoal) // Save protein goal
                     }
                     if let calorieValue = Double(calorieInput), calorieValue >= 0 {
                         calorieGoal = calorieValue
+                        saveGoals(proteinGoal: proteinGoal, calorieGoal: calorieValue) // Save calorie goal
                     }
                     isEditGoalsActive = false // Dismiss the Edit Goals view
                 }) {
@@ -319,16 +364,17 @@ struct CircularProgressBar: View {
                 VStack(spacing: 0) {
                     Text(label)
                         .customFont() // Apply the custom font modifier to the label
-                        .foregroundColor(.black) // Set the color as needed
+                        .foregroundColor(Color.primary) // Set the text color based on the system appearance
+                        .padding(.bottom, 4) // Adjust spacing between label and numbers
                 
                     Text("\(Int(value))/\(Int(goal))") // Display progress numbers
                         .customFont() // Apply the custom font modifier to the numbers
-                        .foregroundColor(.black) // Set the color as needed
+                        .foregroundColor(Color.primary) // Set the text color based on the system appearance
                 }
                 .offset(y: -10) // Adjust the vertical position of the label and numbers
             }
         }
-            .padding(.vertical, 4)
+        .padding(.vertical, 4)
     }
 }
 
@@ -354,35 +400,24 @@ struct StartPage: View {
                 .font(.custom("Courier New", size: 16)) // Apply custom font (monospace)
                 .padding()
             
-            TextField("Enter Desired Protein Goal", text: $proteinInput, onCommit: {
-                if let proteinValue = Double(proteinInput), proteinValue >= 0 {
-                    proteinGoal = proteinValue
-                    isStartPageActive = false // Close the StartPage
-                }
-            })
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            .keyboardType(.numberPad)
-            .padding()
+            TextField("Enter Desired Protein Goal", text: $proteinInput)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .keyboardType(.numberPad)
+                .padding()
             
-            TextField("Enter Desired Calorie Goal", text: $calorieInput, onCommit: {
-                if let calorieValue = Double(calorieInput), calorieValue >= 0 {
-                    calorieGoal = calorieValue
-                    isStartPageActive = false // Close the StartPage
-                }
-            })
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            .keyboardType(.numberPad)
-            .padding()
+            TextField("Enter Desired Calorie Goal", text: $calorieInput)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .keyboardType(.numberPad)
+                .padding()
             
             Button(action: {
                 if let proteinValue = Double(proteinInput), proteinValue >= 0 {
                     proteinGoal = proteinValue
-                    isStartPageActive = false // Close the StartPage
                 }
                 if let calorieValue = Double(calorieInput), calorieValue >= 0 {
                     calorieGoal = calorieValue
-                    isStartPageActive = false // Close the StartPage
                 }
+                isStartPageActive = false // Close the StartPage
             }) {
                 Text("Set Goals")
                     .padding()
@@ -424,21 +459,28 @@ struct AddPage: View {
             
             Button(action: {
                 if let proteinValue = Double(proteinInput), proteinValue >= 0 {
-                    proteinIntake += proteinValue
+                    proteinIntake = proteinValue
                 }
                 if let calorieValue = Double(calorieInput), calorieValue >= 0 {
-                    calorieIntake += calorieValue
+                    calorieIntake = calorieValue
                 }
                 
-                // Log the daily intake
+                // Get the current date
                 let currentDate = Date()
-                let logEntry = DailyLog(date: currentDate, proteinIntake: proteinIntake, calorieIntake: calorieIntake)
-                dailyLogs.append(logEntry)
                 
-                // Save daily logs to storage (you can use CoreData or another storage mechanism)
-                if let encodedLogs = try? JSONEncoder().encode(dailyLogs) {
-                    UserDefaults.standard.set(encodedLogs, forKey: "dailyLogs")
+                // Check if a log entry for the current date already exists
+                if let existingLogIndex = dailyLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: currentDate) }) {
+                    // Update the existing log entry with the new values
+                    dailyLogs[existingLogIndex].proteinIntake += proteinIntake
+                    dailyLogs[existingLogIndex].calorieIntake += calorieIntake
+                } else {
+                    // Create a new log entry if one does not exist for the current date
+                    let logEntry = DailyLog(date: currentDate, proteinIntake: proteinIntake, calorieIntake: calorieIntake)
+                    dailyLogs.append(logEntry)
                 }
+                
+                // Save daily logs to storage
+                saveDailyLogs(dailyLogs)
                 
                 // Dismiss the AddPage and return to the previous view (home page)
                 presentationMode.wrappedValue.dismiss()
